@@ -1,0 +1,1 @@
+This repository serves to host a custom WordPress extension that extends WooCommerce. The tweaks are designed specifically for https://MarkPorterLive.com but can be applied anywhere. Credit is given for sources of inspiration.
