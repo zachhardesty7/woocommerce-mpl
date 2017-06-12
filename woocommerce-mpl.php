@@ -94,6 +94,92 @@ class WC_MPL {
 		add_action( 'woocommerce_before_single_product',
 			array($this, 'zh_single_prod_load' ));
 
+		add_action( 'yith_wcaf_affiliate_panel',
+			array($this, 'zh_add_settings_affiliate_link' ));
+
+		add_action( 'woocommerce_thankyou',
+			array($this, 'custom_woocommerce_auto_complete_order' ));
+
+		add_filter( 'woocommerce_coupons_enabled',
+			array($this, 'hide_coupon_field_on_cart' ));
+
+		add_filter('gettext',
+			array($this, 'translate_reply' ));
+		add_filter('ngettext',
+			array($this, 'translate_reply' ));
+
+		add_action( 'after_setup_theme',
+			array($this, 'zh_add_cart_button' ));
+
+		add_filter( 'woocommerce_billing_fields',
+			array($this, 'zh_move_checkout_fields_woo_3' ), 10, 1 );
+	}
+
+	/**
+	 * @snippet       Move / ReOrder Fields @ Checkout Page, WooCommerce version 3.0+
+	 * @how-to        Watch tutorial @ https://businessbloomer.com/?p=19055
+	 * @sourcecode    https://businessbloomer.com/?p=19571
+	 * @author        Rodolfo Melogli
+	 * @testedwith    WooCommerce 3.0.4
+	 */
+	function zh_move_checkout_fields_woo_3( $fields ) {
+	  $fields['billing_email']['priority'] = 8;
+	  return $fields;
+	}
+
+	// https://jonathanbossenger.com/adding-the-cart-button-to-your-divi-shop-pages/
+	function zh_add_cart_button () {
+    add_action( 'woocommerce_after_shop_loop_item_title', 'woocommerce_template_loop_add_to_cart', 10 );
+	}
+
+	// Credit: Rahul S
+	// https://stackoverflow.com/questions/31017626/how-to-change-woocommerce-text-shipping-in-checkout
+	// https://businessbloomer.com/woocommerce-edit-translate-shipping-handling-cart-checkout-page/
+	function translate_reply($translated) {
+		$translated = str_ireplace('Coupon code', 'Promo Code', $translated);
+		$translated = str_ireplace('Coupon', 'Promo Code', $translated);
+		return $translated;
+	}
+
+	// entirety of bottom cart row (coupon and update quantity) hidden by css
+	function hide_coupon_field_on_cart( $enabled ) {
+		if ( is_cart() ) {
+			$enabled = false;
+		}
+		return $enabled;
+	}
+
+ 	function custom_woocommerce_auto_complete_order( $order_id ) {
+   if ( ! $order_id ) {
+       return;
+   }
+
+   $order = wc_get_order( $order_id );
+   $order->update_status( 'completed' );
+ }
+
+	public function zh_add_settings_affiliate_link($id = '') {
+		$shop_page_url = get_permalink( wc_get_page_id( 'shop' ) );
+		$product_categories = get_terms( 'product_cat' );
+
+		?>
+			<div id="affiliate-link">
+				<h3>Affiliates' Link Help</h3>
+				<h4>Template</h4>
+				Vendor Category and Product Name are optional!
+				<p>https://{shop_base}/{vendor_category}/{product_name}/?ref={vendor_token}</p>
+				<h4>Base:</h4>
+				<p><?=$shop_page_url?></p>
+				<h4>Categories:</h4>
+				<p><?php foreach( $product_categories as $cat ) { echo $cat->slug; } ?></p>
+				<h4>Vendor Tokens:</h4>
+				<p>listed below</p>
+				<h4>EXAMPLES:</h4>
+				<p><?php echo $shop_page_url . '?ref=45'?></p>
+				<p><?php echo $shop_page_url . $product_categories[0]->slug . '/?ref=12'?></p>
+				<p><?php echo $shop_page_url . $product_categories[0]->slug . '/legal-update' . '/?ref=3'?></p>
+			</div>
+		<?php
 	}
 
 	public function zh_remove_cart_message_button($message) {
@@ -207,45 +293,9 @@ class WC_MPL {
 		$zh_category_link = get_term_link($zh_category_ids[0], 'product_cat');
 		?>
 			<div style="padding: 0 0 1.5em 0;">
-				<a href="<?php echo esc_url($zh_category_link) ?>" class="zh-button-left" style="font-size:18px !important;">Back to Store</a>
+				<a href="<?php echo esc_url($zh_category_link) ?>" class="zh-button-left" style="font-size:18px !important;">Return to shop</a>
 			</div>
 		<?php
-	}
-
-	// Deprecated functions for time being, in favor of YITH WooCommerce Affiliates
-	function addProductVendor() {
-		global $post;
-		$zh_vendor = get_post_meta( $post->ID, '_wc_vendor', true );
-		$zh_pagelist = get_pages(array( 'child_of' => 12061));
-		for ($i = 0; $i < count($zh_vendor); $i++) {
-			if (!$zh_vendor[$i] || $zh_vendor[$i] == "none") {
-				array_splice($zh_vendor, $i);
-				break;
-			}
-		}
-		?>
-			<div class="options_group vendor show_if_simple show_if_external">
-		<?php for ($i = 0; $i <= count($zh_vendor); $i++) : ?>
-			<p class="form-field _wc_vendor_field">
-			<?php	printf('<label for="_wc_vendor[%1$b]">Vendor Store Page %2$s</label>
-				<select id="_wc_vendor[%1$b]" name="_wc_vendor[]" style="min-width: 250px; max-width: 300px;">', $i, $i + 1); ?>
-			<option value="none"></option>
-			<?php // Parent = WooCom shop page
-				foreach ( $zh_pagelist as $page ) {
-					printf( '<option value="%1$s" %2$s>%3$s</option>', esc_attr( $page->ID ), selected( $page->ID, $zh_vendor[$i], false ), esc_html__( $page->post_title ) );
-				}
-			?>
-			</select>
-			</p>
-		<?php endfor; ?>
-			</div>
-		<?php
-	}
-
-	public function updateProductVendorMeta($post_id) {
-		if ( isset( $_POST[ '_wc_vendor' ] ) && 'none' != $_POST[ '_wc_vendor' ] ) {
-			update_post_meta( $post_id, '_wc_vendor', $_POST[ '_wc_vendor' ] );
-		}
 	}
 
 	/**
@@ -266,7 +316,9 @@ class WC_MPL {
 			'label_class' => array(),
 			'default' => true,
 			'custom_attributes' => array('style'=>'display: inline-block'),
+			'priority' => 100,
 		);
+
 
 		return $fields;
 	}
