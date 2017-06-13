@@ -43,6 +43,14 @@ class WC_MPL {
 
 		// called after all plugins have loaded
 		add_action( 'plugins_loaded', array( &$this, 'plugins_loaded' ) );
+
+		register_activation_hook(__FILE__,
+			array($this, 'zh_activate_litmos_set_inactive_daily' ));
+		register_deactivation_hook(__FILE__,
+			array($this, 'zh_deactivate_litmos_set_inactive_daily' ));
+
+		add_action( 'zh_litmos_set_inactive_daily',
+			array($this, 'zh_litmos_set_inactive' ));
 	}
 
 	/**
@@ -50,7 +58,6 @@ class WC_MPL {
 	 * For instance, if you need access to the $woocommerce global
 	 */
 	public function woocommerce_loaded() {
-		// ...
 	}
 
 	/**
@@ -60,9 +67,6 @@ class WC_MPL {
 		remove_action( 'woocommerce_product_options_general_product_data',
 			array( accessProtected(wc_litmos(), 'admin'), 'add_simple_product_course_selection'), 10);
 
-		/**
-		 * Credit WooCommerce: https://docs.woocommerce.com/document/customise-the-woocommerce-breadcrumb/
-		 */
 		remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20, 0 );
 
 		add_filter( 'wc_add_to_cart_message_html',
@@ -113,6 +117,51 @@ class WC_MPL {
 
 		add_filter( 'woocommerce_billing_fields',
 			array($this, 'zh_move_checkout_fields_woo_3' ), 10, 1 );
+	}
+
+	public function zh_activate_litmos_set_inactive_daily() {
+    if (! wp_next_scheduled ( 'zh_litmos_set_inactive_daily' )) {
+			wp_schedule_event(time(), 'daily', 'zh_litmos_set_inactive_daily');
+    }
+	}
+	public static function zh_deactivate_litmos_set_inactive_daily() {
+		wp_clear_scheduled_hook('zh_litmos_set_inactive_daily');
+	}
+
+	public static function zh_litmos_set_inactive() {
+		$userlist = wc_litmos()->get_api()->get_users();
+		foreach ($userlist as $user) {
+			if ($user['Active'] && $user['AccessLevel'] == 'Learner') {
+				$assigned_courses = wc_litmos()->get_api()->get_courses_assigned_to_user( $user["Id"] );
+				foreach ($assigned_courses as $course) {
+					// Credit: Farkie @ https://stackoverflow.com/a/16750349/5299167
+					//         jurka @ https://stackoverflow.com/a/3923228/5299167
+					$match = preg_match('/\/Date\((\d+)([-+])(\d+)\)\//', $course['AssignedDate'], $date);
+					$timestamp = $date[1]/1000;
+					$operator = $date[2];
+					$hours = $date[3]*36; // Get the seconds
+
+					$assigned_date = new DateTime();
+					$assigned_date->setTimestamp($timestamp);
+					$assigned_date->modify($operator . $hours . ' seconds');
+
+					$current_date = new DateTime();
+					$interval = $current_date->diff($assigned_date);
+					$date_diff_days = $interval->days;
+
+					// set user inactive only if all assigned courses are 30+ days old
+					if ( $date_diff_days < 30 ) {
+						$user['Active'] = true;
+						break;
+					} else {
+						$user['Active'] = false;
+					}
+				}
+				// update if 'active' state changed to 'inactive'
+				if (!$user['Active'])
+					wc_litmos()->get_api()->update_user( $user );
+			}
+		}
 	}
 
 	/**
