@@ -117,6 +117,67 @@ class WC_MPL {
 
 		add_filter( 'woocommerce_billing_fields',
 			array($this, 'zh_move_checkout_fields_woo_3' ), 10, 1 );
+
+			add_action('wp_head',
+					array($this, 'zh_clean_checkout' ));
+
+			add_action('loop_start',
+					array($this, 'zh_checkout_header' ));
+	}
+
+	public function zh_checkout_header()
+	{
+			if(is_checkout()){
+					?>
+					<style>
+							@media only screen and (min-width: 501px) {
+									#checkout-header {
+											display: flex;
+											align-items: center;
+									}
+									#checkout-header a {
+											position: absolute;
+									}
+									#checkout-header h1 {
+											margin: auto;
+									}
+							}
+							@media only screen and (max-width: 500px) {
+									#checkout-header {
+											text-align: center;
+									}
+									#checkout-header h1 {
+											padding-top: 15px;
+									}
+							}
+					</style>
+					<div id='checkout-header'>
+							<a href="<?php echo esc_url( home_url( '/' ) ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
+									 <img src="<?php echo get_stylesheet_directory_uri(); ?>/images/logo.png" alt="Logo" width="100px" height="100px" />
+							</a>
+							<h1>Checkout</h1>
+					</div>
+					<?php
+			}
+	}
+
+	public function zh_clean_checkout()
+	{
+			if(is_checkout()){
+					?>
+
+					<style type="text/css">
+					#top-header, #main-header, #main-footer, #footer-bottom {
+							display: none;
+					}
+					#page-container {
+							padding-top: 0 !important;
+							margin-top: 0 !important;
+					}
+
+					</style>
+					<?php
+			}
 	}
 
 	public function zh_activate_litmos_set_inactive_daily() {
@@ -140,15 +201,12 @@ class WC_MPL {
 					$timestamp = $date[1]/1000;
 					$operator = $date[2];
 					$hours = $date[3]*36; // Get the seconds
-
 					$assigned_date = new DateTime();
 					$assigned_date->setTimestamp($timestamp);
 					$assigned_date->modify($operator . $hours . ' seconds');
-
 					$current_date = new DateTime();
 					$interval = $current_date->diff($assigned_date);
 					$date_diff_days = $interval->days;
-
 					// set user inactive only if all assigned courses are 30+ days old
 					if ( $date_diff_days < 30 ) {
 						$user['Active'] = true;
@@ -207,6 +265,7 @@ class WC_MPL {
    $order->update_status( 'completed' );
  }
 
+	// Unnecessary
 	public function zh_add_settings_affiliate_link($id = '') {
 		$shop_page_url = get_permalink( wc_get_page_id( 'shop' ) );
 		$product_categories = get_terms( 'product_cat' );
@@ -232,7 +291,6 @@ class WC_MPL {
 	}
 
 	public function zh_remove_cart_message_button($message) {
-		global $woocommerce;
 		$regex = '/<[^>]*>[^<]*<[^>]*>/';
 		return preg_replace($regex, '', $message);
 	}
@@ -384,11 +442,11 @@ class WC_MPL {
 			$lastname = $_POST["billing_last_name"];
 
 			// Your Constant Contact Username
-			$username = "";
+			$username = "travelmark1";
 			// Your Constant Contact Access Token
-			$accessToken = "";
+			$accessToken = "9d5e7feb-85cc-44cb-bffc-6b08c68ffee7";
 			// The Constant Contact List you want the New Contact to be created in
-			$listid = "";
+			$listid = "1792291391";
 
 			$dt = date('c');
 
