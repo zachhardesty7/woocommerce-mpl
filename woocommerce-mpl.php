@@ -131,49 +131,42 @@ class WC_MPL {
 	public function zh_kn_courses() {
 		// hide ATC button on keynote courses
 		?>
-		<style media="screen">
-			.product_cat-keynote-courses a:nth-child(2) {
-				display: none;
-			}
-		</style>
-		<script>
-			jQuery(document).ready(function($) {
-				let urlDef = "http://keynotecommunity.com/take-course/";
-				let urlBase = "https://www.keynoteseries.com/course_details/";
-				let keynoteProductLinks = $(".product_cat-keynote-courses");
-
-				function setCoursesUrl(url) {
-					for (let i = 0; i < keynoteProductLinks.length; i++) {
-						var output = url;
-						if ($('#stateSelectDropdown').val()) {
-							var urlCourse = encodeURI(keynoteProductLinks[i].firstElementChild.children[1].textContent);
-							var output = url + "\/" + urlCourse;
-						}
-						keynoteProductLinks[i].firstElementChild.href = output;
-						keynoteProductLinks[i].firstElementChild.target = "_blank"
-					}
+			<style media="screen">
+				.product_cat-keynote-courses a:nth-child(2) {
+					display: none;
 				}
+			</style>
+			<script>
+				jQuery(document).ready(function($) {
+					let urlDef = "http://keynotecommunity.com/take-course/";
+					let urlBase = "https://www.keynoteseries.com/course_details/";
+					let keynoteProductLinks = $(".product_cat-keynote-courses");
 
-				setCoursesUrl(urlDef);
-				$("#stateSelectDropdown").change(function() {
-					if (!$('#stateSelectDropdown').val()) {
-						setCoursesUrl(urlDef);
-					} else {
-						let urlPartner = $('#stateSelectDropdown').val();
-						let urlNew = urlBase + urlPartner;
-						setCoursesUrl(urlNew);
+					function setCoursesUrl(url) {
+						for (let i = 0; i < keynoteProductLinks.length; i++) {
+							var output = url;
+							if ($('#stateSelectDropdown').val()) {
+								var urlCourse = encodeURI(keynoteProductLinks[i].firstElementChild.children[1].textContent);
+								var output = url + "\/" + urlCourse;
+							}
+							keynoteProductLinks[i].firstElementChild.href = output;
+							keynoteProductLinks[i].firstElementChild.target = "_blank"
+						}
 					}
+
+					setCoursesUrl(urlDef);
+					$("#stateSelectDropdown").change(function() {
+						if (!$('#stateSelectDropdown').val()) {
+							setCoursesUrl(urlDef);
+						} else {
+							let urlPartner = $('#stateSelectDropdown').val();
+							let urlNew = urlBase + urlPartner;
+							setCoursesUrl(urlNew);
+						}
+					})
 				})
-			})
-
-		</script>
-
-
-
-
-
-
-			<?php
+			</script>
+		<?php
 	}
 
 	public function zh_checkout_header()
@@ -216,7 +209,6 @@ class WC_MPL {
 	{
 			if(is_checkout()){
 					?>
-
 					<style type="text/css">
 					#top-header, #main-header, #main-footer, #footer-bottom {
 							display: none;
@@ -225,7 +217,6 @@ class WC_MPL {
 							padding-top: 0 !important;
 							margin-top: 0 !important;
 					}
-
 					</style>
 					<?php
 			}
