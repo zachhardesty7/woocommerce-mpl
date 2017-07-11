@@ -118,11 +118,62 @@ class WC_MPL {
 		add_filter( 'woocommerce_billing_fields',
 			array($this, 'zh_move_checkout_fields_woo_3' ), 10, 1 );
 
-			add_action('wp_head',
-					array($this, 'zh_clean_checkout' ));
+		add_action('wp_head',
+				array($this, 'zh_clean_checkout' ));
 
-			add_action('loop_start',
-					array($this, 'zh_checkout_header' ));
+		add_action('loop_start',
+				array($this, 'zh_checkout_header' ));
+
+		add_action('wp_footer',
+				array($this, 'zh_kn_courses' ));
+	}
+
+	public function zh_kn_courses() {
+		// hide ATC button on keynote courses
+		?>
+		<style media="screen">
+			.product_cat-keynote-courses a:nth-child(2) {
+				display: none;
+			}
+		</style>
+		<script>
+			jQuery(document).ready(function($) {
+				let urlDef = "http://keynotecommunity.com/take-course/";
+				let urlBase = "https://www.keynoteseries.com/course_details/";
+				let keynoteProductLinks = $(".product_cat-keynote-courses");
+
+				function setCoursesUrl(url) {
+					for (let i = 0; i < keynoteProductLinks.length; i++) {
+						var output = url;
+						if ($('#stateSelectDropdown').val()) {
+							var urlCourse = encodeURI(keynoteProductLinks[i].firstElementChild.children[1].textContent);
+							var output = url + "\/" + urlCourse;
+						}
+						keynoteProductLinks[i].firstElementChild.href = output;
+						keynoteProductLinks[i].firstElementChild.target = "_blank"
+					}
+				}
+
+				setCoursesUrl(urlDef);
+				$("#stateSelectDropdown").change(function() {
+					if (!$('#stateSelectDropdown').val()) {
+						setCoursesUrl(urlDef);
+					} else {
+						let urlPartner = $('#stateSelectDropdown').val();
+						let urlNew = urlBase + urlPartner;
+						setCoursesUrl(urlNew);
+					}
+				})
+			})
+
+		</script>
+
+
+
+
+
+
+			<?php
 	}
 
 	public function zh_checkout_header()
