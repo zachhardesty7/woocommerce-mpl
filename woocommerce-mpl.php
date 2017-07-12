@@ -129,39 +129,98 @@ class WC_MPL {
 	}
 
 	public function zh_kn_courses() {
-		// hide ATC button on keynote courses
 		?>
-			<style media="screen">
-				.product_cat-keynote-courses a:nth-child(2) {
-					display: none;
-				}
-			</style>
 			<script>
 				jQuery(document).ready(function($) {
 					let urlDef = "http://keynotecommunity.com/take-course/";
 					let urlBase = "https://www.keynoteseries.com/course_details/";
-					let keynoteProductLinks = $(".product_cat-keynote-courses");
+					let keynoteCatProducts = $(".product_cat-keynote");
 
+					// remove ATC button and price
+					$(".product_cat-keynote .button").remove();
+					$(".product_cat-keynote a .price").remove();
+
+					// dynamic link generation for keynote products
 					function setCoursesUrl(url) {
-						for (let i = 0; i < keynoteProductLinks.length; i++) {
+						for (let i = 0; i < keynoteCatProducts.length; i++) {
 							var output = url;
+							// append encoded product title (course) to @url
 							if ($('#stateSelectDropdown').val()) {
-								var urlCourse = encodeURI(keynoteProductLinks[i].firstElementChild.children[1].textContent);
+								var urlCourse = encodeURI(keynoteCatProducts[i].firstElementChild.children[1].textContent);
 								var output = url + "\/" + urlCourse;
 							}
-							keynoteProductLinks[i].firstElementChild.href = output;
-							keynoteProductLinks[i].firstElementChild.target = "_blank"
+							// set product link to new url
+							keynoteCatProducts[i].firstElementChild.href = output;
+							keynoteCatProducts[i].firstElementChild.target = "_blank"
 						}
 					}
 
+					// set link to default on first run
 					setCoursesUrl(urlDef);
+
+					// on change handler for dropdown selector
+					// dynamically generates link for each product
 					$("#stateSelectDropdown").change(function() {
+
+						// reset disabled courses style
+						$("#keynoteCourseDisable").remove();
+						// remove notice on Other States selection
+						$('#cenoticemain').remove();
+						// remove individual CE notice on disabled courses
+						$('.cenotice').remove();
+
+						// if select "Select state:" set default URL
 						if (!$('#stateSelectDropdown').val()) {
 							setCoursesUrl(urlDef);
+						// else append value of option to URL and set
 						} else {
 							let urlPartner = $('#stateSelectDropdown').val();
 							let urlNew = urlBase + urlPartner;
 							setCoursesUrl(urlNew);
+
+							// if "Other State" selected, display main CE notice
+							if ($('#stateSelectDropdown').val() == "keynoteseriesprofessionaldevelopment") {
+								$('<p>These courses do not offer CE credit and are for professional development only.</p>').attr('id', 'cenoticemain').appendTo($('#stateSelect').parent());
+							}
+
+							// grab product IDs of disabled (not offered) courses from data-*
+							let courseExclPostId = $('#stateSelectDropdown option:selected').data("courseExclPostId");
+							// if only 1 (returned integer)
+							if (Number.isInteger(courseExclPostId)) {
+								// append <style>, greys out all children of href
+								let courseClass = ".post-" + courseExclPostId;
+								let nodeString = "<style id='keynoteCourseDisable'> " + courseClass + " a > * {opacity: .3} </style>"
+								$(document.head).append(nodeString);
+								// disable href
+								$(courseClass + " a").filter(':first').removeAttr('href');
+								// disable Divi overlay hover
+								$(courseClass + " a .et_shop_image .et_overlay").remove();
+								// notice below each product
+								$(courseClass).append($('<p>Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
+
+							// if multiple (returned comma delineated string)
+							} else if (typeof courseExclPostId === "string") {
+								// string -> array
+								let courseExclPostIds = courseExclPostId.split(",");
+								// begin <style>
+								nodeString = "<style id='keynoteCourseDisable'> "
+								// for each disabled product ID
+								courseExclPostIds.forEach(function(courseExclPostId) {
+									// grey out all children of href
+									let courseClass = ".post-" + courseExclPostId;
+									let nodeStringHolder = courseClass + " a > * {opacity: .3}";
+									nodeString += nodeStringHolder;
+									// disable href
+									$(courseClass + " a").filter(':first').removeAttr('href');
+									// disable Divi overlay hover
+									$(courseClass + " a .et_shop_image .et_overlay").remove();
+									// notice below each product
+									$(courseClass).append($('<p>Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
+								})
+								// append closing tag, append to <head>
+								nodeString += "</style>"
+								$(document.head).append(nodeString);
+							}
 						}
 					})
 				})
