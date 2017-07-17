@@ -15,6 +15,7 @@ License URI: http://www.gnu.org/licenses/gpl-3.0.html
 defined( 'ABSPATH' ) or exit;
 add_action( 'plugins_loaded', 'wc_mpl' );
 
+// allows access to protected class functions and values (properties and methods)
 function accessProtected($obj, $propmeth, $type = 'property') {
 	if ($type == 'method') {
 		$r = new ReflectionMethod($obj, $propmeth);
@@ -29,6 +30,7 @@ function accessProtected($obj, $propmeth, $type = 'property') {
 }
 
 class WC_MPL {
+	// enforces singleton
 	protected static $instance;
 	public static function instance() {
 		if ( is_null( self::$instance ) ) {
@@ -38,31 +40,17 @@ class WC_MPL {
 	}
 
 	public function __construct() {
-		// called only after woocommerce has finished loading
-		add_action( 'woocommerce_init', array( &$this, 'woocommerce_loaded' ) );
-
-		// called after all plugins have loaded
 		add_action( 'plugins_loaded', array( &$this, 'plugins_loaded' ) );
 
+		// enable / disable Litmos auto user deactivation CRON task
 		register_activation_hook(__FILE__,
 			array($this, 'zh_activate_litmos_set_inactive_daily' ));
 		register_deactivation_hook(__FILE__,
 			array($this, 'zh_deactivate_litmos_set_inactive_daily' ));
-
 		add_action( 'zh_litmos_set_inactive_daily',
 			array($this, 'zh_litmos_set_inactive' ));
 	}
 
-	/**
-	 * Take care of anything that needs woocommerce to be loaded.
-	 * For instance, if you need access to the $woocommerce global
-	 */
-	public function woocommerce_loaded() {
-	}
-
-	/**
-	 * Take care of anything that needs all plugins to be loaded
-	 */
 	public function plugins_loaded() {
 		remove_action( 'woocommerce_product_options_general_product_data',
 			array( accessProtected(wc_litmos(), 'admin'), 'add_simple_product_course_selection'), 10);
@@ -128,6 +116,9 @@ class WC_MPL {
 				array($this, 'zh_kn_courses' ));
 	}
 
+	/**
+	 *  @snippet    Dynamically change links on custom Keynote courses based on dropdown selection
+	 */
 	public function zh_kn_courses() {
 		?>
 			<script>
@@ -143,11 +134,11 @@ class WC_MPL {
 					// dynamic link generation for keynote products
 					function setCoursesUrl(url) {
 						for (let i = 0; i < keynoteCatProducts.length; i++) {
-							var output = url;
+							let output = url + "?code=markporter";
 							// append encoded product title (course) to @url
 							if ($('#stateSelectDropdown').val()) {
-								var urlCourse = encodeURI(keynoteCatProducts[i].firstElementChild.children[1].textContent);
-								var output = url + "\/" + urlCourse;
+								let urlCourse = encodeURI(keynoteCatProducts[i].firstElementChild.children[1].textContent);
+								output = url + "\/" + urlCourse + "?code=markporter";
 							}
 							// set product link to new url
 							keynoteCatProducts[i].firstElementChild.href = output;
@@ -168,6 +159,8 @@ class WC_MPL {
 						$('#cenoticemain').remove();
 						// remove individual CE notice on disabled courses
 						$('.cenotice').remove();
+						// enable divi overlay
+						$("a .et_shop_image .et_overlay").show();
 
 						// if select "Select state:" set default URL
 						if (!$('#stateSelectDropdown').val()) {
@@ -180,7 +173,7 @@ class WC_MPL {
 
 							// if "Other State" selected, display main CE notice
 							if ($('#stateSelectDropdown').val() == "keynoteseriesprofessionaldevelopment") {
-								$('<p>These courses do not offer CE credit and are for professional development only.</p>').attr('id', 'cenoticemain').appendTo($('#stateSelect').parent());
+								$('<p style="color:#c6000c">These courses do not offer CE credit and are for professional development only.</p>').attr('id', 'cenoticemain').appendTo($('#stateSelect').parent());
 							}
 
 							// grab product IDs of disabled (not offered) courses from data-*
@@ -194,31 +187,32 @@ class WC_MPL {
 								// disable href
 								$(courseClass + " a").filter(':first').removeAttr('href');
 								// disable Divi overlay hover
-								$(courseClass + " a .et_shop_image .et_overlay").remove();
+								$(courseClass + " a .et_shop_image .et_overlay").hide();
 								// notice below each product
-								$(courseClass).append($('<p>Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
+								$(courseClass).append($('<p style="color:#c6000c">Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
 
 							// if multiple (returned comma delineated string)
 							} else if (typeof courseExclPostId === "string") {
 								// string -> array
 								let courseExclPostIds = courseExclPostId.split(",");
 								// begin <style>
-								nodeString = "<style id='keynoteCourseDisable'> "
+								nodeString = "<style id='keynoteCourseDisable'>"
 								// for each disabled product ID
-								courseExclPostIds.forEach(function(courseExclPostId) {
+								courseExclPostIds.forEach(function(courseExclPostId, i) {
 									// grey out all children of href
-									let courseClass = ".post-" + courseExclPostId;
-									let nodeStringHolder = courseClass + " a > * {opacity: .3}";
+									let courseClass = " .post-" + courseExclPostId;
+									let nodeStringHolder = courseClass + " a > *";
+									if (i != courseExclPostIds.length - 1) nodeStringHolder += ",";
 									nodeString += nodeStringHolder;
 									// disable href
 									$(courseClass + " a").filter(':first').removeAttr('href');
 									// disable Divi overlay hover
-									$(courseClass + " a .et_shop_image .et_overlay").remove();
+									$(courseClass + " a .et_shop_image .et_overlay").hide();
 									// notice below each product
-									$(courseClass).append($('<p>Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
+									$(courseClass).append($('<p style="color:#c6000c">Course not for CE credit\nPlease select "Other State"</p>').addClass("cenotice"));
 								})
 								// append closing tag, append to <head>
-								nodeString += "</style>"
+								nodeString += "{opacity: .3} </style>"
 								$(document.head).append(nodeString);
 							}
 						}
@@ -228,68 +222,80 @@ class WC_MPL {
 		<?php
 	}
 
-	public function zh_checkout_header()
-	{
-			if(is_checkout()){
-					?>
-					<style>
-							@media only screen and (min-width: 501px) {
-									#checkout-header {
-											display: flex;
-											align-items: center;
-									}
-									#checkout-header a {
-											position: absolute;
-									}
-									#checkout-header h1 {
-											margin: auto;
-									}
-							}
-							@media only screen and (max-width: 500px) {
-									#checkout-header {
-											text-align: center;
-									}
-									#checkout-header h1 {
-											padding-top: 15px;
-									}
-							}
-					</style>
-					<div id='checkout-header'>
-							<a href="<?php echo esc_url( home_url( '/' ) ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
-									 <img src="<?php echo get_stylesheet_directory_uri(); ?>/images/logo.png" alt="Logo" width="100px" height="100px" />
-							</a>
-							<h1>Checkout</h1>
-					</div>
-					<?php
-			}
+	/**
+	 *  @snippet    Add "Checkout" and site logo on WC checkout page
+	 */
+	public function zh_checkout_header() {
+		if(is_checkout()){
+			?>
+			<div id='checkout-header'>
+				<a href="<?php echo esc_url( home_url( '/' ) ); ?>" title="<?php echo esc_attr( get_bloginfo( 'name', 'display' ) ); ?>" rel="home">
+					<img src="<?php echo get_stylesheet_directory_uri(); ?>/images/logo.png" alt="Logo" width="100px" height="100px" />
+				</a>
+				<h1>Checkout</h1>
+			</div>
+			<?php
+		}
 	}
 
-	public function zh_clean_checkout()
-	{
-			if(is_checkout()){
-					?>
-					<style type="text/css">
-					#top-header, #main-header, #main-footer, #footer-bottom {
-							display: none;
+	/**
+	 *  @snippet    Hide noise on WC checkout page and style new header
+	 */
+	public function zh_clean_checkout() {
+		if(is_checkout()){
+			?>
+			<style type="text/css">
+				#top-header, #main-header, #main-footer, #footer-bottom {
+						display: none;
+				}
+				#page-container {
+						padding-top: 0 !important;
+						margin-top: 0 !important;
+				}
+
+				@media only screen and (min-width: 501px) {
+					#checkout-header {
+						display: flex;
+						align-items: center;
 					}
-					#page-container {
-							padding-top: 0 !important;
-							margin-top: 0 !important;
+					#checkout-header a {
+						position: absolute;
 					}
-					</style>
-					<?php
-			}
+					#checkout-header h1 {
+						margin: auto;
+					}
+				}
+				@media only screen and (max-width: 500px) {
+					#checkout-header {
+						text-align: center;
+					}
+					#checkout-header h1 {
+						padding-top: 15px;
+					}
+				}
+			</style>
+			<?php
+		}
 	}
 
+	/**
+	 *  @snipet    Schedule zh_litmos_set_inactive CRON task for daily if unscheduled
+	 */
 	public function zh_activate_litmos_set_inactive_daily() {
     if (! wp_next_scheduled ( 'zh_litmos_set_inactive_daily' )) {
 			wp_schedule_event(time(), 'daily', 'zh_litmos_set_inactive_daily');
     }
 	}
+	/**
+	 *  @snippet   Unschedule zh_litmos_set_inactive
+	 */
 	public static function zh_deactivate_litmos_set_inactive_daily() {
 		wp_clear_scheduled_hook('zh_litmos_set_inactive_daily');
 	}
-
+	/**
+	 *  @snippet   Check date of assigned Litmos courses. If all > 30 days ago, set user inactive
+	 *             Litmos charges on an active user basis
+	 */
 	public static function zh_litmos_set_inactive() {
 		$userlist = wc_litmos()->get_api()->get_users();
 		foreach ($userlist as $user) {
@@ -309,6 +315,7 @@ class WC_MPL {
 					$interval = $current_date->diff($assigned_date);
 					$date_diff_days = $interval->days;
 					// set user inactive only if all assigned courses are 30+ days old
+					// keeps user active by breaking if any course was assigned < 30 days ago
 					if ( $date_diff_days < 30 ) {
 						$user['Active'] = true;
 						break;
@@ -316,7 +323,7 @@ class WC_MPL {
 						$user['Active'] = false;
 					}
 				}
-				// update if 'active' state changed to 'inactive'
+				// update thru api if 'active' state changed to 'inactive'
 				if (!$user['Active'])
 					wc_litmos()->get_api()->update_user( $user );
 			}
@@ -324,7 +331,7 @@ class WC_MPL {
 	}
 
 	/**
-	 * @snippet       Move / ReOrder Fields @ Checkout Page, WooCommerce version 3.0+
+	 * @snippet       Move email billing field to top of form
 	 * @how-to        Watch tutorial @ https://businessbloomer.com/?p=19055
 	 * @sourcecode    https://businessbloomer.com/?p=19571
 	 * @author        Rodolfo Melogli
@@ -335,21 +342,29 @@ class WC_MPL {
 	  return $fields;
 	}
 
-	// https://jonathanbossenger.com/adding-the-cart-button-to-your-divi-shop-pages/
+	/**
+	 *  @snippet    Enable ATC button on store catalog pages
+	 *  @source     https://jonathanbossenger.com/adding-the-cart-button-to-your-divi-shop-pages/
+	 */
 	function zh_add_cart_button () {
     add_action( 'woocommerce_after_shop_loop_item_title', 'woocommerce_template_loop_add_to_cart', 10 );
 	}
 
-	// Credit: Rahul S
-	// https://stackoverflow.com/questions/31017626/how-to-change-woocommerce-text-shipping-in-checkout
-	// https://businessbloomer.com/woocommerce-edit-translate-shipping-handling-cart-checkout-page/
+	/**
+	 *  @snippet   Change all instances of "Coupon" to "Promo Code"
+	 *  @credit    Rahul S
+	 *  @source    https://stackoverflow.com/questions/31017626/how-to-change-woocommerce-text-shipping-in-checkout
+	 *  @source    https://businessbloomer.com/woocommerce-edit-translate-shipping-handling-cart-checkout-page/
+	 */
 	function translate_reply($translated) {
 		$translated = str_ireplace('Coupon code', 'Promo Code', $translated);
 		$translated = str_ireplace('Coupon', 'Promo Code', $translated);
 		return $translated;
 	}
 
-	// entirety of bottom cart row (coupon and update quantity) hidden by css
+	/**
+	 *  @snippet   Hide entirety of WC bottom cart row (coupon and update quantity) thru css
+	 */
 	function hide_coupon_field_on_cart( $enabled ) {
 		if ( is_cart() ) {
 			$enabled = false;
@@ -357,16 +372,18 @@ class WC_MPL {
 		return $enabled;
 	}
 
+	/**
+	 *  @snippet   Auto WC order from processing -> complete
+	 */
  	function custom_woocommerce_auto_complete_order( $order_id ) {
    if ( ! $order_id ) {
        return;
    }
-
    $order = wc_get_order( $order_id );
    $order->update_status( 'completed' );
  }
 
-	// Unnecessary
+	// Unnecessary & unused
 	public function zh_add_settings_affiliate_link($id = '') {
 		$shop_page_url = get_permalink( wc_get_page_id( 'shop' ) );
 		$product_categories = get_terms( 'product_cat' );
@@ -391,23 +408,32 @@ class WC_MPL {
 		<?php
 	}
 
+	/**
+	 *  @snippet   Remove "Continue Shopping" button from successfully added to cart banner message
+	 */
 	public function zh_remove_cart_message_button($message) {
 		$regex = '/<[^>]*>[^<]*<[^>]*>/';
 		return preg_replace($regex, '', $message);
 	}
 
+	/**
+	 *  @snippet   Create dropdown selector that includes all linked litmos courses
+	 */
 	public function wcProductLitmosCourseCode() {
 		global $post;
-		// TODO: broken on product creation
+		// TODO: implement dropdown in dynamic JS (PHP is dumb)
+		// FIXME: broken on initial product creation
 		// Notice: Uninitialized string offset: 0 in /home/markport/public_html/dev/wp-content/plugins/woocommerce-mpl/woocommerce-mpl.php on line 206
 		// Warning: array_splice() expects parameter 1 to be array, string given in /home/markport/public_html/dev/wp-content/plugins/woocommerce-mpl/woocommerce-mpl.php on line 207
 		$zh_course_id = get_post_meta( $post->ID, '_wc_litmos_course_id', true );
+		// remove empty options other than one
 		for ($i = 0; $i < count($zh_course_id); $i++) {
 			if (!$zh_course_id[$i] || $zh_course_id[$i] == "none") {
 				array_splice($zh_course_id, $i);
 				break;
 			}
 		}
+		// html for options
 		?>
 			<div class="options_group litmos show_if_simple show_if_external">
 		<?php for ($i = 0; $i <= count($zh_course_id); $i++) : ?>
@@ -427,6 +453,9 @@ class WC_MPL {
 		<?php
 	}
 
+	/**
+	 *  @snippet   Update post meta with array of litmos courses linked to WC product
+	 */
 	public function wcProductLitmosCourseCodeUpdateMeta($post_id) {
 		if ( isset( $_POST[ '_wc_litmos_course_id' ] ) && 'none' != $_POST[ '_wc_litmos_course_id' ] ) {
 			update_post_meta( $post_id, '_wc_litmos_course_id', $_POST[ '_wc_litmos_course_id' ] );
@@ -450,8 +479,9 @@ class WC_MPL {
 				// }
 
 	/**
-	 * Credit Nicola Mustone: https://nicola.blog/2015/07/20/change-the-return-to-shop-button-url-in-the-cart-page/
-	 * Credit HappyKite: http://www.happykite.co.uk/
+	 * @snippet   Set link to WP transient for 'recent_cat' if defined or base shop page
+	 * @credit    Nicola Mustone: https://nicola.blog/2015/07/20/change-the-return-to-shop-button-url-in-the-cart-page/
+	 * @credit    HappyKite: http://www.happykite.co.uk/
 	 */
 	public static function zh_return_link() {
 		$cat_referer = get_transient( 'recent_cat');
@@ -464,11 +494,14 @@ class WC_MPL {
 		return $returnlink;
 	}
 
+	/**
+	 *  @snippet   Update transient for recent_cat with previous URL if page != product or cart
+	 */
 	function zh_single_prod_load() {
 		if ( isset( $_SERVER["HTTP_REFERER"] ) ) {
 			$referringURL = $_SERVER[ "HTTP_REFERER" ];
-		} else {
-			$referringURL = '';
+		// } else {
+		// 	$referringURL = '';
 		}
 
 		if ( strpos( $referringURL, 'basket' ) == false
@@ -481,12 +514,18 @@ class WC_MPL {
 		}
 	}
 
+	/**
+	 *  @snippet   Execute update of transient for 12 hours
+	 */
 	public static function zh_save_recent_category( $referrer ) {
 		delete_transient( 'recent_cat' );
 		set_transient( 'recent_cat', $referrer, 60*60*12 );
 		return;
 	}
 
+	/**
+	 *  @snippet   Display "Continue Shopping" on cart
+	 */
 	public static function cartBackToVendorStorePage($vendor) {
 		?>
 			<div style="padding: 0 0 1.5em 0;">
@@ -495,6 +534,9 @@ class WC_MPL {
 		<?php
 	}
 
+	/**
+	 *  @snippet   Display "Return to shop" on product page
+	 */
 	public function productBackToVendorStorePage($vendor) {
 		global $product;
 		$zh_category_ids = $product->get_category_ids();
@@ -507,14 +549,12 @@ class WC_MPL {
 	}
 
 	/**
-	* add custom fields to WooCommerce checkout
-	* @param array fields
-	* @return array
-	* Credit GeekTweaks: http://geektweaks.swishersolutions.com
+	* @snippet    Add newsletter subscription checkbox on checkout
+	* @param      array fields
+	* @return     array
+	* @credit     GeekTweaks: http://geektweaks.swishersolutions.com
 	*/
 	public static function filterWooCheckoutFields($fields) {
-		global $woocommerce;
-		// add field at end of billing fields section for newsletter
 		$fields['billing']['our_mailing_subscribe'] = array(
 			'type' => 'checkbox',
 			'label' => 'Sign me up for the MPL Newsletter!',
@@ -526,14 +566,12 @@ class WC_MPL {
 			'custom_attributes' => array('style'=>'display: inline-block'),
 			'priority' => 100,
 		);
-
-
 		return $fields;
 	}
 
 	/**
-   * save custom order fields
-   * @param int $order_id
+   * @snippet   Collect submitted checkout data, post to CC, save to meta
+   * @param     int $order_id
    */
   public static function actionWooCheckoutUpdateOrderMeta($order_id) {
 	  if (isset($_POST['our_mailing_subscribe'])) {
@@ -572,14 +610,13 @@ class WC_MPL {
 					</content>
 				</entry>";
 
+			// http post
 			include_once( ABSPATH . WPINC. '/class-http.php' );
-
 			$url = "https://api.constantcontact.com/ws/customers/$username/contacts?access_token=$accessToken";
 			$request = new WP_Http;
 			$headers = array( 'Content-Type' => 'application/atom+xml' );
 			$result = $request->request( $url, array( 'method' => 'POST', 'body' => $body, 'headers' => $headers ));
 		}
-
 		update_post_meta($order_id, 'Subscribe to mailing list',
 			stripslashes($_POST['our_mailing_subscribe']));
   }
