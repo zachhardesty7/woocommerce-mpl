@@ -1,7 +1,7 @@
 === WooCommerce MPL ===
 Contributors: Zach Hardesty
 Tags: woocommerce
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 
 == Description ==
 
@@ -13,6 +13,10 @@ This repository serves to host a custom WordPress extension that extends WooComm
 2. Activate the plugin through the 'Plugins' menu in WordPress
 
 == Changelog ==
+
+= 1.1.0 =
+* major restyling
+* add license number field
 
 = 1.0.0 =
 * Initial Release
